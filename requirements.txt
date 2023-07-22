@@ -1,3 +1,6 @@
 altair
 pandas
 streamlit
+yfinance
+numpy
+matplotlib
