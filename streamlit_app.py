@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Función para descargar los datos y realizar las simulaciones
-def simulate(ticker_symbol, start_date, end_date, model):
+def simulate(ticker_symbol, start_date, end_date, model, num_simulations):
     # Descargar los datos históricos
     data = yf.download(ticker_symbol, start=start_date, end=end_date)
     close_prices = data['Close']
@@ -19,7 +19,7 @@ def simulate(ticker_symbol, start_date, end_date, model):
 
     if model == "Monte Carlo":
         simulations_mc = []
-        for i in range(1000):
+        for i in range(num_simulations):
             simulated_data = np.random.normal(mean, std, ret.shape[0])
             sim_stock_price = starting_stock_price * (simulated_data + 1).cumprod()
             df_mc = pd.DataFrame(sim_stock_price, columns=['Price'])
@@ -29,16 +29,19 @@ def simulate(ticker_symbol, start_date, end_date, model):
     elif model == "GBM":
         n = 1000  # Number of intervals
         T = 4  # Time in years
-        M = 1000  # Number of simulations
 
         # Calculate each time step
         dt = T / n
 
         # Simulation using numpy arrays
         np.random.seed(42)
-        St = np.exp((mean - std ** 2 / 2) * dt + std * np.random.normal(0, np.sqrt(dt), size=(M, n)).T)
+        St = np.exp((mean - std ** 2 / 2) * dt + std * np.random.normal(0, np.sqrt(dt), size=(num_simulations, n)).T)
         St = starting_stock_price * St.cumprod(axis=0)
-        simulations_gbm = pd.DataFrame(St, columns=['Price'])
+        
+        simulations_gbm = []
+        for i in range(num_simulations):
+            df = pd.DataFrame(St[:, i], columns=['Price'])
+            simulations_gbm.append(df)
         return simulations_gbm
 
     elif model == "Heston":
@@ -50,7 +53,6 @@ def simulate(ticker_symbol, start_date, end_date, model):
         T = 1  # Time to maturity (in years)
         N = 860  # Number of time steps
         dt = T / N  # Time increment
-        num_simulations = 100  # Number of simulations
 
         simulations_hm = []
         for i in range(num_simulations):
@@ -69,7 +71,13 @@ def simulate(ticker_symbol, start_date, end_date, model):
 
             df_heston = pd.DataFrame(S, columns=['Price'])
             simulations_hm.append(df_heston)
-        return pd.concat(simulations_hm, axis=1).mean(axis=1)
+        return simulations_hm
+
+# Función para graficar las simulaciones
+def plot_simulations(simulations):
+    for i in range(len(simulations)):
+        plt.plot(simulations[i])
+    st.pyplot()
 
 # Utiliza streamlit para crear la UI
 st.title("Stock Price Simulation")
@@ -84,7 +92,10 @@ end_date = st.date_input("End date:", value=pd.to_datetime("2011-01-01"))
 # Campo de entrada para el modelo de simulación
 model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston"])
 
+# Campo de entrada para el número de simulaciones
+num_simulations = st.number_input("Number of simulations:", min_value=1, max_value=1000, value=100)
+
 # Cuando se presiona el botón, realiza la simulación y muestra el resultado
 if st.button("Simulate"):
-    simulations = simulate(ticker_symbol, start_date, end_date, model)
-    st.line_chart(simulations)
+    simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations)
+    plot_simulations(simulations)
