@@ -1,38 +1,90 @@
-from collections import namedtuple
-import altair as alt
-import math
-import pandas as pd
 import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
-"""
-# Welcome to Streamlit!
+# Función para descargar los datos y realizar las simulaciones
+def simulate(ticker_symbol, start_date, end_date, model):
+    # Descargar los datos históricos
+    data = yf.download(ticker_symbol, start=start_date, end=end_date)
+    close_prices = data['Close']
+    ret = np.log(1+close_prices.pct_change())
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+    mean = ret.mean()
+    std = ret.std()
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+    # Obtener el último precio de cierre como el precio de inicio
+    starting_stock_price = close_prices[-1]
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+    if model == "Monte Carlo":
+        simulations_mc = []
+        for i in range(1000):
+            simulated_data = np.random.normal(mean, std, ret.shape[0])
+            sim_stock_price = starting_stock_price * (simulated_data + 1).cumprod()
+            df_mc = pd.DataFrame(sim_stock_price, columns=['Price'])
+            simulations_mc.append(df_mc)
+        return simulations_mc
 
+    elif model == "GBM":
+        n = 1000  # Number of intervals
+        T = 4  # Time in years
+        M = 1000  # Number of simulations
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+        # Calculate each time step
+        dt = T / n
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+        # Simulation using numpy arrays
+        np.random.seed(42)
+        St = np.exp((mean - std ** 2 / 2) * dt + std * np.random.normal(0, np.sqrt(dt), size=(M, n)).T)
+        St = starting_stock_price * St.cumprod(axis=0)
+        simulations_gbm = pd.DataFrame(St, columns=['Price'])
+        return simulations_gbm
 
-    points_per_turn = total_points / num_turns
+    elif model == "Heston":
+        kappa = 2  # Mean reversion speed of variance
+        theta = std ** 2  # Long-term average variance
+        sigma = std  # Volatility of volatility
+        rho = -0.5  # Correlation between the stock price and its volatility
+        r = 0.05  # Risk-free interest rate
+        T = 1  # Time to maturity (in years)
+        N = 860  # Number of time steps
+        dt = T / N  # Time increment
+        num_simulations = 100  # Number of simulations
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
+        simulations_hm = []
+        for i in range(num_simulations):
+            V = np.zeros(N+1)
+            V[0] = theta
+            for t in range(1, N+1):
+                dZ1 = np.random.normal(0, np.sqrt(dt))
+                dZ2 = rho * dZ1 + np.sqrt(1 - rho**2) * np.random.normal(0, np.sqrt(dt))
+                V[t] = V[t-1] + kappa * (theta - V[t-1]) * dt + sigma * np.sqrt(V[t-1]) * dZ1
 
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+            S = np.zeros(N+1)
+            S[0] = starting_stock_price
+            for t in range(1, N+1):
+                dW = np.random.normal(0, np.sqrt(dt))
+                S[t] = S[t-1] * np.exp((r - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
+
+            df_heston = pd.DataFrame(S, columns=['Price'])
+            simulations_hm.append(df_heston)
+        return pd.concat(simulations_hm, axis=1).mean(axis=1)
+
+# Utiliza streamlit para crear la UI
+st.title("Stock Price Simulation")
+
+# Campo de entrada para el símbolo de ticker
+ticker_symbol = st.text_input("Enter ticker symbol:", value="AAPL")
+
+# Campos de entrada para las fechas de inicio y fin
+start_date = st.date_input("Start date:", value=pd.to_datetime("2008-01-01"))
+end_date = st.date_input("End date:", value=pd.to_datetime("2011-01-01"))
+
+# Campo de entrada para el modelo de simulación
+model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston"])
+
+# Cuando se presiona el botón, realiza la simulación y muestra el resultado
+if st.button("Simulate"):
+    simulations = simulate(ticker_symbol, start_date, end_date, model)
+    st.line_chart(simulations)
