@@ -94,8 +94,8 @@ st.title("Stock Price Simulation")
 ticker_symbol = st.text_input("Enter ticker symbol:", value="AAPL")
 
 # Campos de entrada para las fechas de inicio y fin
-start_date = st.date_input("Start date:", value=pd.to_datetime("2008-01-01"))
-end_date = st.date_input("End date:", value=pd.to_datetime("2021-12-31"))
+start_date = st.date_input("Start date:")
+end_date = st.date_input("End date:")
 
 # Campo de entrada para el número de simulaciones
 num_simulations = st.number_input("Number of simulations:", min_value=100, max_value=10000, value=1000)
