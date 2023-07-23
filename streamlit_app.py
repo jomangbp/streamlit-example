@@ -104,6 +104,11 @@ num_simulations = st.number_input("Number of simulations:", min_value=100, max_v
 model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston", "Markov"])
 
 # Cuando se presiona el botón, realiza la simulación y muestra el resultado
+# Cuando se presiona el botón, realiza la simulación y muestra el resultado
 if st.button("Simulate"):
     simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations)
-    st.line_chart(simulations)
+    if model == "Markov":
+        st.write(simulations)
+    else:
+        for sim in simulations:
+            st.line_chart(sim)
