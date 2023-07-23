@@ -87,7 +87,7 @@ ticker_symbol = st.text_input("Enter ticker symbol:", value="AAPL")
 
 # Campos de entrada para las fechas de inicio y fin
 start_date = st.date_input("Start date:", value=pd.to_datetime("2008-01-01"))
-end_date = st.date_input("End date:", value=pd.to_datetime("2011-01-01"))
+end_date = st.date_input("End date:", value=pd.to_datetime("today"))
 
 # Campo de entrada para el modelo de simulación
 model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston"])
