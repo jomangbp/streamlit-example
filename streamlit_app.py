@@ -67,9 +67,8 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
                 S[t] = S[t-1] * np.exp((r - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
 
             df_heston = pd.DataFrame(S, columns=['Price'])
-            simulations_hm.append(df_heston)
-        return pd.concat(simulations_hm, axis=1).mean(axis=1)
-
+           return [df_heston]
+        
     elif model == "Markov":
         data["daily_return"] = data["Adj Close"].pct_change()
         data["state"] = np.where(data["daily_return"] >= 0, "up", "down")
