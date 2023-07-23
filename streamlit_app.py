@@ -85,12 +85,11 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
         up_to_down = len(data[(data["state"] == "down") & (data["state"].shift(-1) == "up")]) / len(data.query('state=="down"'))
         down_to_down = len(data[(data["state"] == "down") & (data["state"].shift(-1) == "down")]) / len(data.query('state=="down"'))
         transition_matrix = pd.DataFrame({
-            "up": [up_to_up, up_to_down],
-            "down": [down_to_up, down_to_down]
-        }, index=["up", "down"])
-
-        return transition_matrix
-
+         "up": [up_to_up, up_to_down],
+         "down": [down_to_up, down_to_down]
+         }, index=["up", "down"])
+        return [transition_matrix]
+        
 # Utiliza streamlit para crear la UI
 st.title("Stock Price Simulation")
 
