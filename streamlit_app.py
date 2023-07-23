@@ -37,7 +37,9 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
         np.random.seed(42)
         St = np.exp((mean - std ** 2 / 2) * dt + std * np.random.normal(0, np.sqrt(dt), size=(M, n)).T)
         St = starting_stock_price * St.cumprod(axis=0)
-        simulations_gbm = pd.DataFrame(St, columns=['Price'])
+        column_names = ['Simulation_{}'.format(i) for i in range(num_simulations)]
+        simulations_gbm = pd.DataFrame(St, columns=column_names)
+
         return simulations_gbm
 
     elif model == "Heston":
