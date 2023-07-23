@@ -40,34 +40,37 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
         simulations_gbm = pd.DataFrame(St, columns=['Price'])
         return simulations_gbm
 
-    elif model == "Heston":
-        kappa = 2  # Mean reversion speed of variance
-        theta = std ** 2  # Long-term average variance
-        sigma = std  # Volatility of volatility
-        rho = -0.5  # Correlation between the stock price and its volatility
-        r = 0.05  # Risk-free interest rate
-        T = 1  # Time to maturity (in years)
-        N = 860  # Number of time steps
-        dt = T / N  # Time increment
-        num_simulations = num_simulations  # Number of simulations
+ elif model == "Heston":
+    kappa = 2  # Mean reversion speed of variance
+    theta = std ** 2  # Long-term average variance
+    sigma = std  # Volatility of volatility
+    rho = -0.5  # Correlation between the stock price and its volatility
+    r = 0.05  # Risk-free interest rate
+    T = 1  # Time to maturity (in years)
+    N = 860  # Number of time steps
+    dt = T / N  # Time increment
+    num_simulations = num_simulations  # Number of simulations
 
-        simulations_hm = []
-        for i in range(num_simulations):
-            V = np.zeros(N+1)
-            V[0] = theta
-            for t in range(1, N+1):
-                dZ1 = np.random.normal(0, np.sqrt(dt))
-                dZ2 = rho * dZ1 + np.sqrt(1 - rho**2) * np.random.normal(0, np.sqrt(dt))
-                V[t] = V[t-1] + kappa * (theta - V[t-1]) * dt + sigma * np.sqrt(V[t-1]) * dZ1
+    simulations_hm = []
+    for i in range(num_simulations):
+        V = np.zeros(N+1)
+        V[0] = theta
+        for t in range(1, N+1):
+            dZ1 = np.random.normal(0, np.sqrt(dt))
+            dZ2 = rho * dZ1 + np.sqrt(1 - rho**2) * np.random.normal(0, np.sqrt(dt))
+            V[t] = V[t-1] + kappa * (theta - V[t-1]) * dt + sigma * np.sqrt(V[t-1]) * dZ1
 
-            S = np.zeros(N+1)
-            S[0] = starting_stock_price
-            for t in range(1, N+1):
-                dW = np.random.normal(0, np.sqrt(dt))
-                S[t] = S[t-1] * np.exp((r - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
+        S = np.zeros(N+1)
+        S[0] = starting_stock_price
+        for t in range(1, N+1):
+            dW = np.random.normal(0, np.sqrt(dt))
+            S[t] = S[t-1] * np.exp((r - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
 
-            df_heston = pd.DataFrame(S, columns=['Price'])
-           return [df_heston]
+        df_heston = pd.DataFrame(S, columns=['Price'])
+        simulations_hm.append(df_heston)
+    
+    return simulations_hm
+
         
     elif model == "Markov":
         data["daily_return"] = data["Adj Close"].pct_change()
