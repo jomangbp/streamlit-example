@@ -120,6 +120,9 @@ if st.button("Simulate"):
 
         # Crear el histograma de los resultados finales de las simulaciones
         st.subheader("Histogram of final simulation results")
-        st.bar_chart(all_simulations.iloc[-1].value_counts(bins=10))
+        final_results = all_simulations.iloc[-1].value_counts(bins=10)
+        final_results_df = pd.DataFrame({'Simulation Result': final_results.index.astype(str), 'Count': final_results.values})
+        st.bar_chart(final_results_df)
     else:
         st.write(simulations)
+
