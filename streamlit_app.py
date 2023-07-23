@@ -94,14 +94,14 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
 st.title("Stock Price Simulation")
 
 # Campo de entrada para el símbolo de ticker
-ticker_symbol = st.text_input("Enter ticker symbol:", value="AAPL")
+ticker_symbol = st.text_input("Enter ticker symbol:")
 
 # Campos de entrada para las fechas de inicio y fin
 start_date = st.date_input("Start date:")
 end_date = st.date_input("End date:")
 
 # Campo de entrada para el número de simulaciones
-num_simulations = st.number_input("Number of simulations:", min_value=100, max_value=10000, value=1000)
+num_simulations = st.number_input("Number of simulations:", min_value=100, max_value=10000)
 
 # Campo de entrada para el modelo de simulación
 model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston", "Markov"])
