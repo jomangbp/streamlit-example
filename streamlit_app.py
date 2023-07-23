@@ -109,9 +109,17 @@ model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", 
 # Cuando se presiona el botón, realiza la simulación y muestra el resultado
 if st.button("Simulate"):
     simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations)
-    if model == "Markov":
-        st.write(simulations)
-    else:
+
+    if model != "Markov":
         # Concatenar todas las simulaciones en un solo DataFrame
         all_simulations = pd.concat(simulations, axis=1)
+
+        # Crear el gráfico de líneas con todas las simulaciones
+        st.subheader("Line chart of all simulations")
         st.line_chart(all_simulations)
+
+        # Crear el histograma de los resultados finales de las simulaciones
+        st.subheader("Histogram of final simulation results")
+        st.bar_chart(all_simulations.iloc[-1].value_counts(bins=10))
+    else:
+        st.write(simulations)
