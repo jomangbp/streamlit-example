@@ -26,10 +26,13 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
 
     # Calcular el rendimiento de los dividendos
     dividend_yield = dividends / close_prices
-    ret = np.log(1 + close_prices.pct_change() + dividend_yield) - interest_rate
 
-    mean = ret.mean()
-    std = ret.std()
+    # Rellenar los valores faltantes en dividend_yield con 0
+    dividend_yield = dividend_yield.fillna(0)
+
+    # Calcular los retornos teniendo en cuenta los dividendos y la tasa de interés
+    interest_rate = 0.01  # Asumiendo una tasa de interés del 1%
+    ret = np.log(1 + close_prices.pct_change() + dividend_yield) - interest_rate
 
     # Obtener el último precio de cierre como el precio de inicio
     starting_stock_price = close_prices[-1]
