@@ -8,8 +8,13 @@ import matplotlib.pyplot as plt
 def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
     # Descargar los datos históricos
     data = yf.download(ticker_symbol, start=start_date, end=end_date)
+    dividends = yf.Ticker(ticker_symbol).actions['Dividends']
+    interest_rate = 0.01  # Asumimos una tasa de interés constante del 1%
+
+    # Calcular los retornos ajustados
     close_prices = data['Close']
-    ret = np.log(1+close_prices.pct_change())
+    dividend_yield = dividends / close_prices
+    ret = np.log(1 + close_prices.pct_change() + dividend_yield) - interest_rate
 
     mean = ret.mean()
     std = ret.std()
