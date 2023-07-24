@@ -121,9 +121,20 @@ if st.button("Simulate"):
 
         # Crear el gráfico de pastel de los resultados finales de las simulaciones
         st.subheader("Pie chart of final simulation results")
-        final_results = all_simulations.iloc[-1].value_counts()
+        final_results = all_simulations.iloc[-1]
+        
+        # Define los rangos de precios basados en los percentiles
+        bins = [final_results.min(), final_results.quantile(0.1), final_results.quantile(0.2), final_results.quantile(0.3), 
+                final_results.quantile(0.4), final_results.quantile(0.5), final_results.quantile(0.6), 
+                final_results.quantile(0.7), final_results.quantile(0.8), final_results.quantile(0.9), 
+                final_results.quantile(1)]
+        names = ['0-10%', '10-20%', '20-30%', '30-40%', '40-50%', '50-60%', '60-70%', '70-80%', '80-90%', '90-100%']
+
+        # Agrupa los resultados finales en los rangos de precios
+        final_results_grouped = pd.cut(final_results, bins, labels=names).value_counts()
+
         plt.figure(figsize=(10,6))
-        plt.pie(final_results, labels=final_results.index, autopct='%1.1f%%')
+        plt.pie(final_results_grouped, labels=final_results_grouped.index, autopct='%1.1f%%')
         plt.title('Pie chart of final simulation results')
         st.pyplot(plt)
     else:
