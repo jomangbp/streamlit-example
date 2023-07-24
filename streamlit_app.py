@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Función para descargar los datos y realizar las simulaciones
 def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
@@ -118,11 +119,13 @@ if st.button("Simulate"):
         st.subheader("Line chart of all simulations")
         st.line_chart(all_simulations)
 
-        # Crear el histograma de los resultados finales de las simulaciones
-        st.subheader("Histogram of final simulation results")
-        final_results = all_simulations.iloc[-1].value_counts(bins=10)
-        final_results_df = pd.DataFrame({'Simulation Result': final_results.index.astype(str), 'Count': final_results.values})
-        st.bar_chart(final_results_df)
+        # Crear el gráfico de pastel de los resultados finales de las simulaciones
+        st.subheader("Pie chart of final simulation results")
+        final_results = all_simulations.iloc[-1].value_counts()
+        plt.figure(figsize=(10,6))
+        plt.pie(final_results, labels=final_results.index, autopct='%1.1f%%')
+        plt.title('Pie chart of final simulation results')
+        st.pyplot(plt)
     else:
         st.write(simulations)
 
