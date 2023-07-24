@@ -124,8 +124,8 @@ if st.button("Simulate"):
         st.subheader("Line chart of all simulations")
         st.line_chart(all_simulations)
 
-        # Crear el gráfico de pastel de los resultados finales de las simulaciones
-        st.subheader("Pie chart of final simulation results")
+        # Crear el gráfico de barras de los resultados finales de las simulaciones
+        st.subheader("Bar chart of final simulation results")
         final_results = all_simulations.iloc[-1]
         
         # Define los rangos de precios basados en los percentiles
@@ -139,8 +139,8 @@ if st.button("Simulate"):
         final_results_grouped = pd.cut(final_results, bins, labels=names).value_counts()
 
         plt.figure(figsize=(10,6))
-        plt.pie(final_results_grouped, labels=final_results_grouped.index, autopct='%1.1f%%')
-        plt.title('Pie chart of final simulation results')
+        plt.bar(final_results_grouped.index, final_results_grouped)
+        plt.title('Bar chart of final simulation results')
         st.pyplot(plt)
     else:
         st.write(simulations)
