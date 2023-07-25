@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Función para descargar los datos y realizar las simulaciones
-def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000, kappa=2, theta=0.01, sigma=0.1, rho=-0.5, r=0.05):
+def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
     # Descargar los datos históricos
     data = yf.download(ticker_symbol, start=start_date, end=end_date)
     close_prices = data['Close']
@@ -19,24 +19,16 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000, k
     # Obtener el último precio de cierre como el precio de inicio
     starting_stock_price = close_prices[-1]
 
-    # Descargar los datos de dividendos
-    dividends = yf.Ticker(ticker_symbol).dividends
+    if model == "Monte Carlo":
+        simulations_mc = []
+        for i in range(num_simulations):
+            simulated_data = np.random.normal(mean, std, ret.shape[0])
+            sim_stock_price = starting_stock_price * (simulated_data + 1).cumprod()
+            df_mc = pd.DataFrame(sim_stock_price, columns=['Price'])
+            simulations_mc.append(df_mc)
+        return simulations_mc
 
-    # Asegúrate de que ambos índices de tiempo sean conscientes de la zona horaria
-    dividends.index = dividends.index.tz_localize(None)
-    close_prices.index = close_prices.index.tz_localize(None)
-
-    # Calcular el rendimiento de los dividendos
-    dividend_yield = dividends / close_prices
-
-    # Rellenar los valores faltantes en dividend_yield con 0
-    dividend_yield = dividend_yield.fillna(0)
-
-    # Calcular los retornos teniendo en cuenta los dividendos y la tasa de interés
-    interest_rate = 0.01  # Asumiendo una tasa de interés del 1%
-    ret = np.log(1 + close_prices.pct_change() + dividend_yield) - interest_rate
-
-    if model == "Heston":
+    elif model == "GBM":
         n = 1000  # Number of intervals
         T = 4  # Time in years
         M = num_simulations  # Number of simulations
@@ -54,9 +46,15 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000, k
         return [simulations_gbm]
 
     elif model == "Heston":
-        N = 860  # Number of time steps
+        kappa = 2  # Mean reversion speed of variance
+        theta = std ** 2  # Long-term average variance
+        sigma = std  # Volatility of volatility
+        rho = -0.5  # Correlation between the stock price and its volatility
+        r = 0.01  # Risk-free interest rate
         T = 1  # Time to maturity (in years)
+        N = 860  # Number of time steps
         dt = T / N  # Time increment
+        num_simulations = num_simulations  # Number of simulations
 
         simulations_hm = []
         for i in range(num_simulations):
@@ -92,20 +90,21 @@ end_date = st.date_input("End date:")
 num_simulations = st.number_input("Number of simulations:", min_value=100, max_value=10000)
 
 # Campo de entrada para el modelo de simulación
-model = st.selectbox("Select simulation model:", options=["GBM", "Heston"])
-
-# Si el usuario selecciona el modelo de Heston, muestra campos de entrada adicionales para los parámetros del modelo
-if model == "Heston":
-    kappa = st.number_input("Enter kappa (mean reversion speed of variance):", min_value=0.0, value=2.0)
-    theta = st.number_input("Enter theta (long-term average variance):", min_value=0.0, value=0.01)
-    sigma = st.number_input("Enter sigma (volatility of volatility):", min_value=0.0, value=0.1)
-    rho = st.number_input("Enter rho (correlation between the stock price and its volatility):", min_value=-1.0, max_value=1.0, value=-0.5)
-    r = st.number_input("Enter r (risk-free interest rate):", min_value=0.0, value=0.05)
+model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston"])
 
 # Cuando se presiona el botón, realiza la simulación y muestra el resultado
 if st.button("Simulate"):
-    simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations, kappa=kappa, theta=theta, sigma=sigma, rho=rho, r=r)
-        
+    # Descargar los datos históricos
+    data = yf.download(ticker_symbol, start=start_date, end=end_date)
+
+    # Dividir los datos en un conjunto de entrenamiento y un conjunto de prueba
+    train_size = int(len(data) * 0.8)
+    train_data = data[:train_size]
+    test_data = data[train_size:]
+
+    # Realizar la simulación en los datos de entrenamiento
+    simulations = simulate(ticker_symbol, train_data.index[0], train_data.index[-1], model, num_simulations)
+
     # Concatenar todas las simulaciones en un solo DataFrame
     all_simulations = pd.concat(simulations, axis=1)
 
@@ -130,3 +129,9 @@ if st.button("Simulate"):
     plt.pie(final_results_grouped, labels=final_results_grouped.index, autopct='%1.1f%%')
     plt.title('Pie chart of final simulation results')
     st.pyplot(plt)
+
+    # Realizar el backtesting comparando los resultados de la simulación con los datos de prueba
+    st.subheader("Backtesting results")
+    for i, simulation in enumerate(simulations):
+        st.write(f"Simulation {i+1}")
+        st.line_chart(pd.DataFrame({'Simulation': simulation['Price'], 'Real': test_data['Close']}))
