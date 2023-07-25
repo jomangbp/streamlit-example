@@ -9,8 +9,12 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
     # Descargar los datos históricos
     data = yf.download(ticker_symbol, start=start_date, end=end_date)
     close_prices = data['Close']
-    ret = np.log(1+close_prices.pct_change())
+    dividends = data['Dividends']
+    interest_rate = data['Interest Rate']  # Asumiendo que los datos de la tasa de interés están disponibles
 
+    # Calcular los retornos logarítmicos
+    ret = np.log(1 + close_prices.pct_change() + dividends) - interest_rate
+    
     mean = ret.mean()
     std = ret.std()
 
