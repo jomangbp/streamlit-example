@@ -67,35 +67,44 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
 
         return [simulations_gbm]
 
-    elif model == "Heston":
+    
+    if model == "Heston":
+        # Parámetros del modelo Heston
         kappa = 2  # Mean reversion speed of variance
         theta = std ** 2  # Long-term average variance
         sigma = std  # Volatility of volatility
         rho = -0.5  # Correlation between the stock price and its volatility
+        v0 = std ** 2  # Initial variance
+
+        # Parámetros de la opción
         r = 0.05  # Risk-free interest rate
         T = 1  # Time to maturity (in years)
-        N = 860  # Number of time steps
-        dt = T / N  # Time increment
-        num_simulations = num_simulations  # Number of simulations
+        S0 = starting_stock_price  # Initial stock price
+        K = S0  # Strike price
 
+        # Crear el proceso de Heston
+        day_count = ql.Actual365Fixed()
+        calendar = ql.UnitedStates()
+        ql.Settings.instance().evaluationDate = ql.Date(1, 1, 2020)
+
+        spot_handle = ql.QuoteHandle(ql.SimpleQuote(S0))
+        flat_ts = ql.YieldTermStructureHandle(ql.FlatForward(ql.Settings.instance().evaluationDate, r, day_count))
+        dividend_yield = ql.YieldTermStructureHandle(ql.FlatForward(ql.Settings.instance().evaluationDate, 0.0, day_count))
+        heston_process = ql.HestonProcess(flat_ts, dividend_yield, spot_handle, v0, kappa, theta, sigma, rho)
+
+        # Crear el generador de números aleatorios
+        rng = ql.GaussianRandomSequenceGenerator(ql.UniformRandomSequenceGenerator(2, ql.UniformRandomGenerator()))
+        seq = ql.GaussianPathGenerator(heston_process, T, num_simulations, rng, False)
+
+        # Simular los precios de las acciones
         simulations_hm = []
         for i in range(num_simulations):
-            V = np.zeros(N+1)
-            V[0] = theta
-            for t in range(1, N+1):
-                dZ1 = np.random.normal(0, np.sqrt(dt))
-                dZ2 = rho * dZ1 + np.sqrt(1 - rho**2) * np.random.normal(0, np.sqrt(dt))
-                V[t] = V[t-1] + kappa * (theta - V[t-1]) * dt + sigma * np.sqrt(V[t-1]) * dZ1
-
-            S = np.zeros(N+1)
-            S[0] = starting_stock_price
-            for t in range(1, N+1):
-                dW = np.random.normal(0, np.sqrt(dt))
-                S[t] = S[t-1] * np.exp((r - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
-
-            df_heston = pd.DataFrame(S, columns=['Price'])
+            sample_path = seq.next()
+            path = sample_path.value()
+            simulated_stock_prices = [path[j][0] for j in range(len(path))]
+            df_heston = pd.DataFrame(simulated_stock_prices, columns=['Price'])
             simulations_hm.append(df_heston)
-        
+
         return simulations_hm
         
     elif model == "Markov":
