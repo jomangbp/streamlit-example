@@ -97,7 +97,6 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
             simulations_hm.append(df_heston)
         
         return simulations_hm
-
         
     elif model == "Markov":
         data["daily_return"] = data["Adj Close"].pct_change()
