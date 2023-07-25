@@ -150,12 +150,12 @@ if st.button("Simulate"):
         names = ['{0:.2f}-{1:.2f}'.format(bins[i], bins[i+1]) for i in range(len(bins)-1)]  # Crea los nombres de los rangos
 
      # Agrupa los resultados finales en los rangos de precios
-       final_results_grouped = pd.cut(final_results, bins, labels=names).value_counts()
+        final_results_grouped = pd.cut(final_results, bins, labels=names).value_counts()
 
-       plt.figure(figsize=(10,6))
-       plt.pie(final_results_grouped, labels=final_results_grouped.index, autopct='%1.1f%%')
-       plt.title('Pie chart of final simulation results')
-      st.pyplot(plt)
+        plt.figure(figsize=(10,6))
+        plt.pie(final_results_grouped, labels=final_results_grouped.index, autopct='%1.1f%%')
+        plt.title('Pie chart of final simulation results')
+        st.pyplot(plt)
     else:
         st.write(simulations)
 
