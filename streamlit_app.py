@@ -3,17 +3,16 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import QuantLib as ql
 
 # Función para descargar los datos y realizar las simulaciones
 def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
     # Descargar los datos históricos
     data = yf.download(ticker_symbol, start=start_date, end=end_date)
     close_prices = data['Close']
-    dividends = data['Dividends']
-    interest_rate = data['Interest Rate']  # Asumiendo que los datos de la tasa de interés están disponibles
 
     # Calcular los retornos logarítmicos
-    ret = np.log(1 + close_prices.pct_change() + dividends) - interest_rate
+    ret = np.log(1 + close_prices.pct_change())
     
     mean = ret.mean()
     std = ret.std()
@@ -38,8 +37,13 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
     interest_rate = 0.01  # Asumiendo una tasa de interés del 1%
     ret = np.log(1 + close_prices.pct_change() + dividend_yield) - interest_rate
 
-    # Obtener el último precio de cierre como el precio de inicio
-    starting_stock_price = close_prices[-1]
+    # Crear un calendario de dividendos en QuantLib
+    ex_dates = [ql.Date(d.day, d.month, d.year) for d in dividends.index]
+    amounts = dividends.values
+    dividend_schedule = ql.DividendSchedule([ql.FixedDividend(amount, date) for amount, date in zip(amounts, ex_dates)])
+
+    # Crear una estructura de plazo de rendimiento en QuantLib
+    yield_curve = ql.FlatForward(0, ql.TARGET(), ql.QuoteHandle(ql.SimpleQuote(interest_rate)), ql.Actual360())
 
     if model == "Monte Carlo":
         simulations_mc = []
@@ -69,42 +73,37 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
 
     
     if model == "Heston":
-        # Parámetros del modelo Heston
         kappa = 2  # Mean reversion speed of variance
         theta = std ** 2  # Long-term average variance
         sigma = std  # Volatility of volatility
         rho = -0.5  # Correlation between the stock price and its volatility
-        v0 = std ** 2  # Initial variance
-
-        # Parámetros de la opción
-        r = 0.05  # Risk-free interest rate
+        r = yield_curve.zeroRate(1.0, ql.Compounded).rate()  # Risk-free interest rate from yield curve
         T = 1  # Time to maturity (in years)
-        S0 = starting_stock_price  # Initial stock price
-        K = S0  # Strike price
+        N = 860  # Number of time steps
+        dt = T / N  # Time increment
+        num_simulations = num_simulations  # Number of simulations
 
-        # Crear el proceso de Heston
-        day_count = ql.Actual365Fixed()
-        calendar = ql.UnitedStates()
-        ql.Settings.instance().evaluationDate = ql.Date(1, 1, 2020)
-
-        spot_handle = ql.QuoteHandle(ql.SimpleQuote(S0))
-        flat_ts = ql.YieldTermStructureHandle(ql.FlatForward(ql.Settings.instance().evaluationDate, r, day_count))
-        dividend_yield = ql.YieldTermStructureHandle(ql.FlatForward(ql.Settings.instance().evaluationDate, 0.0, day_count))
-        heston_process = ql.HestonProcess(flat_ts, dividend_yield, spot_handle, v0, kappa, theta, sigma, rho)
-
-        # Crear el generador de números aleatorios
-        rng = ql.GaussianRandomSequenceGenerator(ql.UniformRandomSequenceGenerator(2, ql.UniformRandomGenerator()))
-        seq = ql.GaussianPathGenerator(heston_process, T, num_simulations, rng, False)
-
-        # Simular los precios de las acciones
         simulations_hm = []
         for i in range(num_simulations):
-            sample_path = seq.next()
-            path = sample_path.value()
-            simulated_stock_prices = [path[j][0] for j in range(len(path))]
-            df_heston = pd.DataFrame(simulated_stock_prices, columns=['Price'])
-            simulations_hm.append(df_heston)
+            V = np.zeros(N+1)
+            V[0] = theta
+            for t in range(1, N+1):
+                dZ1 = np.random.normal(0, np.sqrt(dt))
+                dZ2 = rho * dZ1 + np.sqrt(1 - rho**2) * np.random.normal(0, np.sqrt(dt))
+                V[t] = V[t-1] + kappa * (theta - V[t-1]) * dt + sigma * np.sqrt(V[t-1]) * dZ1
 
+            S = np.zeros(N+1)
+            S[0] = starting_stock_price
+            for t in range(1, N+1):
+                dW = np.random.normal(0, np.sqrt(dt))
+                # Calculate the dividend yield for the current time step
+                dividend_yield = dividend_schedule.dividendYield(ql.Date(t, 1, 1))
+                # Adjust the stock price for dividends and interest rate
+                S[t] = S[t-1] * np.exp((r - dividend_yield - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
+
+            df_heston = pd.DataFrame(S, columns=['Price'])
+            simulations_hm.append(df_heston)
+        
         return simulations_hm
         
     elif model == "Markov":
