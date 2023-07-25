@@ -19,16 +19,24 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000, k
     # Obtener el último precio de cierre como el precio de inicio
     starting_stock_price = close_prices[-1]
 
-    if model == "Monte Carlo":
-        simulations_mc = []
-        for i in range(num_simulations):
-            simulated_data = np.random.normal(mean, std, ret.shape[0])
-            sim_stock_price = starting_stock_price * (simulated_data + 1).cumprod()
-            df_mc = pd.DataFrame(sim_stock_price, columns=['Price'])
-            simulations_mc.append(df_mc)
-        return simulations_mc
+    # Descargar los datos de dividendos
+    dividends = yf.Ticker(ticker_symbol).dividends
 
-    elif model == "GBM":
+    # Asegúrate de que ambos índices de tiempo sean conscientes de la zona horaria
+    dividends.index = dividends.index.tz_localize(None)
+    close_prices.index = close_prices.index.tz_localize(None)
+
+    # Calcular el rendimiento de los dividendos
+    dividend_yield = dividends / close_prices
+
+    # Rellenar los valores faltantes en dividend_yield con 0
+    dividend_yield = dividend_yield.fillna(0)
+
+    # Calcular los retornos teniendo en cuenta los dividendos y la tasa de interés
+    interest_rate = 0.01  # Asumiendo una tasa de interés del 1%
+    ret = np.log(1 + close_prices.pct_change() + dividend_yield) - interest_rate
+
+    if model == "Heston":
         n = 1000  # Number of intervals
         T = 4  # Time in years
         M = num_simulations  # Number of simulations
@@ -46,10 +54,9 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000, k
         return [simulations_gbm]
 
     elif model == "Heston":
-        T = 1  # Time to maturity (in years)
         N = 860  # Number of time steps
+        T = 1  # Time to maturity (in years)
         dt = T / N  # Time increment
-        num_simulations = num_simulations  # Number of simulations
 
         simulations_hm = []
         for i in range(num_simulations):
@@ -70,7 +77,7 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000, k
             simulations_hm.append(df_heston)
         
         return simulations_hm
-        
+
 # Utiliza streamlit para crear la UI
 st.title("Stock Price Simulation")
 
@@ -85,7 +92,7 @@ end_date = st.date_input("End date:")
 num_simulations = st.number_input("Number of simulations:", min_value=100, max_value=10000)
 
 # Campo de entrada para el modelo de simulación
-model = st.selectbox("Select simulation model:", options=["Monte Carlo", "GBM", "Heston"])
+model = st.selectbox("Select simulation model:", options=["GBM", "Heston"])
 
 # Si el usuario selecciona el modelo de Heston, muestra campos de entrada adicionales para los parámetros del modelo
 if model == "Heston":
@@ -97,11 +104,8 @@ if model == "Heston":
 
 # Cuando se presiona el botón, realiza la simulación y muestra el resultado
 if st.button("Simulate"):
-    if model == "Heston":
-        simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations, kappa=kappa, theta=theta, sigma=sigma, rho=rho, r=r)
-    else:
-        simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations)
-
+    simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations, kappa=kappa, theta=theta, sigma=sigma, rho=rho, r=r)
+        
     # Concatenar todas las simulaciones en un solo DataFrame
     all_simulations = pd.concat(simulations, axis=1)
 
