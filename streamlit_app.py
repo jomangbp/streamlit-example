@@ -132,9 +132,9 @@ if st.button("Simulate"):
 
     # Realizar el backtesting comparando los resultados de la simulación con los datos de prueba
     st.subheader("Backtesting results")
+    simulation_index = st.slider("Select simulation:", 0, len(simulations)-1)
     fig, ax = plt.subplots(figsize=(10, 6))
-    for i, simulation in enumerate(simulations):
-        ax.plot(simulation.index, simulation['Price'], label=f'Simulation {i+1}')
+    ax.plot(simulations[simulation_index].index, simulations[simulation_index]['Price'], label=f'Simulation {simulation_index+1}')
     ax.plot(test_data.index, test_data['Close'], label='Real', color='black', linewidth=2.5)
     ax.legend()
     st.pyplot(fig)
