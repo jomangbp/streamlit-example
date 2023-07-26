@@ -132,6 +132,9 @@ if st.button("Simulate"):
 
     # Realizar el backtesting comparando los resultados de la simulación con los datos de prueba
     st.subheader("Backtesting results")
+    fig, ax = plt.subplots(figsize=(10, 6))
     for i, simulation in enumerate(simulations):
-        st.write(f"Simulation {i+1}")
-        st.line_chart(pd.DataFrame({'Simulation': simulation['Price'], 'Real': test_data['Close']}))
+        ax.plot(simulation.index, simulation['Price'], label=f'Simulation {i+1}')
+    ax.plot(test_data.index, test_data['Close'], label='Real', color='black', linewidth=2.5)
+    ax.legend()
+    st.pyplot(fig)
