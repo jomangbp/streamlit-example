@@ -3,29 +3,21 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import talib
-from ta.trend import SMAIndicator, EMAIndicator
-from ta.volatility import BollingerBands
-from ta.momentum import ROCIndicator
+import pandas_ta as ta
 
 # Función para calcular los indicadores técnicos
 def calculate_indicators(data):
     # Calcular el SMA
-    sma_indicator = SMAIndicator(data['Close'], window=14)
-    data['SMA'] = sma_indicator.sma_indicator()
+    data['SMA'] = ta.sma(data['Close'], length=14)
 
     # Calcular el EMA
-    ema_indicator = EMAIndicator(data['Close'], window=14)
-    data['EMA'] = ema_indicator.ema_indicator()
+    data['EMA'] = ta.ema(data['Close'], length=14)
 
     # Calcular las bandas de Bollinger
-    bb_indicator = BollingerBands(data['Close'], window=20, window_dev=2)
-    data['BB_High'] = bb_indicator.bollinger_hband()
-    data['BB_Low'] = bb_indicator.bollinger_lband()
+    data['BB_High'], data['BB_Mid'], data['BB_Low'] = ta.bbands(data['Close'], length=20)
 
     # Calcular el ROC (Rate of Change) para la estrategia de momentum
-    roc_indicator = ROCIndicator(data['Close'], window=14)
-    data['ROC'] = roc_indicator.roc()
+    data['ROC'] = ta.roc(data['Close'], length=14)
 
     return data
 
@@ -72,6 +64,7 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
             simulated_data = np.random.normal(mean, std, ret.shape[0])
             sim_stock_price = starting_stock_price * (simulated_data + 1).cumprod()
             df_mc = pd.DataFrame(sim_stock_price, columns=['Price'])
+            df_mc.index = data.index  # Asegúrate de que los datos simulados tengan el mismo índice que los datos reales
             simulations_mc.append(df_mc)
         return simulations_mc
 
@@ -89,6 +82,7 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
         St = starting_stock_price * St.cumprod(axis=0)
         column_names = ['Simulation_{}'.format(i) for i in range(M)]
         simulations_gbm = pd.DataFrame(St, columns=column_names)
+        simulations_gbm.index = data.index  # Asegúrate de que los datos simulados tengan el mismo índice que los datos reales
 
         return [simulations_gbm]
 
@@ -119,6 +113,7 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
                 S[t] = S[t-1] * np.exp((r - 0.5 * V[t]) * dt + np.sqrt(V[t]) * dW)
 
             df_heston = pd.DataFrame(S, columns=['Price'])
+            df_heston.index = data.index  # Asegúrate de que los datos simulados tengan el mismo índice que los datos reales
             simulations_hm.append(df_heston)
         
         return simulations_hm
