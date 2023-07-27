@@ -4,4 +4,4 @@ streamlit
 yfinance
 numpy
 matplotlib
-talib
+
