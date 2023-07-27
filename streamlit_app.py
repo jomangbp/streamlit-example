@@ -130,11 +130,12 @@ if st.button("Simulate"):
     plt.title('Pie chart of final simulation results')
     st.pyplot(plt)
 
+    # Guardar las simulaciones en el estado de la sesión
+    if 'simulations' not in st.session_state:
+        st.session_state['simulations'] = simulations
+
     # Realizar el backtesting comparando los resultados de la simulación con los datos de prueba
     st.subheader("Backtesting results")
-    simulation_index = st.slider("Select simulation:", 0, len(simulations)-1)
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(simulations[simulation_index].index, simulations[simulation_index]['Price'], label=f'Simulation {simulation_index+1}')
-    ax.plot(test_data.index, test_data['Close'], label='Real', color='black', linewidth=2.5)
-    ax.legend()
-    st.pyplot(fig)
+    simulation_index = st.slider("Select a simulation:", 0, len(simulations)-1, 0)
+    simulation = st.session_state['simulations'][simulation_index]
+    st.line_chart(pd.DataFrame({'Simulation': simulation['Price'], 'Real': test_data['Close']}))
