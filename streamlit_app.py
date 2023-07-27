@@ -3,6 +3,53 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import talib
+from ta.trend import SMAIndicator, EMAIndicator
+from ta.volatility import BollingerBands
+from ta.momentum import ROCIndicator
+
+# Función para calcular los indicadores técnicos
+def calculate_indicators(data):
+    # Calcular el SMA
+    sma_indicator = SMAIndicator(data['Close'], window=14)
+    data['SMA'] = sma_indicator.sma_indicator()
+
+    # Calcular el EMA
+    ema_indicator = EMAIndicator(data['Close'], window=14)
+    data['EMA'] = ema_indicator.ema_indicator()
+
+    # Calcular las bandas de Bollinger
+    bb_indicator = BollingerBands(data['Close'], window=20, window_dev=2)
+    data['BB_High'] = bb_indicator.bollinger_hband()
+    data['BB_Low'] = bb_indicator.bollinger_lband()
+
+    # Calcular el ROC (Rate of Change) para la estrategia de momentum
+    roc_indicator = ROCIndicator(data['Close'], window=14)
+    data['ROC'] = roc_indicator.roc()
+
+    return data
+
+# Función para implementar la estrategia de reversión a la media
+def mean_reversion_strategy(data):
+    # Crear una columna para las señales de trading
+    data['Signal_MR'] = 0
+
+    # Generar señales de trading basadas en la estrategia de reversión a la media
+    data.loc[(data['Close'] > data['BB_High']) & (data['Close'] > data['EMA']), 'Signal_MR'] = -1
+    data.loc[(data['Close'] < data['BB_Low']) & (data['Close'] < data['EMA']), 'Signal_MR'] = 1
+
+    return data
+
+# Función para implementar la estrategia de momentum
+def momentum_strategy(data):
+    # Crear una columna para las señales de trading
+    data['Signal_M'] = 0
+
+    # Generar señales de trading basadas en la estrategia de momentum
+    data.loc[data['ROC'] > 0, 'Signal_M'] = 1
+    data.loc[data['ROC'] < 0, 'Signal_M'] = -1
+
+    return data
 
 # Función para descargar los datos y realizar las simulaciones
 def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
@@ -77,7 +124,7 @@ def simulate(ticker_symbol, start_date, end_date, model, num_simulations=1000):
         return simulations_hm
 
 # Utiliza streamlit para crear la UI
-st.title("Stock Price Simulation")
+st.title("Stock Price Simulation and Trading Strategies")
 
 # Campo de entrada para el símbolo de ticker
 ticker_symbol = st.text_input("Enter ticker symbol:")
@@ -97,16 +144,34 @@ if st.button("Simulate"):
     # Descargar los datos históricos
     data = yf.download(ticker_symbol, start=start_date, end=end_date)
 
-    # Dividir los datos en un conjunto de entrenamiento y un conjunto de prueba
-    train_size = int(len(data) * 0.8)
-    train_data = data[:train_size]
-    test_data = data[train_size:]
+    # Calcular los indicadores técnicos
+    data = calculate_indicators(data)
+
+    # Implementar la estrategia de reversión a la media
+    data = mean_reversion_strategy(data)
+
+    # Implementar la estrategia de momentum
+    data = momentum_strategy(data)
+
+    # Mostrar los datos con los indicadores y las señales de trading
+    st.write(data)
+
+    # Crear un gráfico con los precios de cierre, el EMA, las bandas de Bollinger y el ROC
+    plt.figure(figsize=(12,6))
+    plt.plot(data['Close'], label='Close Price', color='blue')
+    plt.plot(data['EMA'], label='EMA', color='red')
+    plt.plot(data['BB_High'], label='Bollinger Bands High', color='orange')
+    plt.plot(data['BB_Low'], label='Bollinger Bands Low', color='orange')
+    plt.plot(data['ROC'], label='ROC', color='green')
+    plt.title('Close Price, EMA, Bollinger Bands and ROC')
+    plt.legend()
+    st.pyplot(plt)
 
     # Realizar la simulación en los datos de entrenamiento
-    simulations = simulate(ticker_symbol, train_data.index[0], train_data.index[-1], model, num_simulations)
+    simulations = simulate(ticker_symbol, start_date, end_date, model, num_simulations)
 
     # Concatenar todas las simulaciones en un solo DataFrame
-    all_simulations = pd.concat(simulations, axis=1)
+    all_simulations = pd.concat([sim['Price'] for sim in simulations], axis=1)
 
     # Crear el gráfico de líneas con todas las simulaciones
     st.subheader("Line chart of all simulations")
@@ -130,12 +195,8 @@ if st.button("Simulate"):
     plt.title('Pie chart of final simulation results')
     st.pyplot(plt)
 
-    # Guardar las simulaciones en el estado de la sesión
-    if 'simulations' not in st.session_state:
-        st.session_state['simulations'] = simulations
-
     # Realizar el backtesting comparando los resultados de la simulación con los datos de prueba
     st.subheader("Backtesting results")
-    simulation_index = st.slider("Select a simulation:", 0, len(simulations)-1, 0)
-    simulation = st.session_state['simulations'][simulation_index]
-    st.line_chart(pd.DataFrame({'Simulation': simulation['Price'], 'Real': test_data['Close']}))
+    for i, simulation in enumerate(simulations):
+        st.write(f"Simulation {i+1}")
+        st.line_chart(pd.DataFrame({'Simulation': simulation['Price'], 'Real': data['Close']}))
